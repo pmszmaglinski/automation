@@ -1,0 +1,40 @@
+#!/bin/bash
+
+DB_USER=''
+DB_PASS=''
+DB_PATH="/var/lib/mysql"
+DATE=`date "+%Y%m%d"`
+TMP_DIR="./db_$DATE"
+
+mkdir -p "/tmp/db_$DATE"
+cd /tmp
+echo `date "+%F %H:%M:%S: "`"**** Creating MySQL Backup ****"
+
+echo `date "+%F %H:%M:%S: "`"Databases:"
+for filename in $( ls $DB_PATH ); do
+  if [ -d $DB_PATH/$filename ]; then
+    echo `date "+%F %H:%M:%S:"`"  - $filename "
+    mysqldump -u $DB_USER -p$DB_PASS $filename > /tmp/db_$DATE/$filename.sql
+  fi
+done
+
+echo `date "+%F %H:%M:%S:"`" Compressing dumped databases"
+bzip2 -9 /tmp/db_$DATE/*
+tar -cf db_$DATE.tar db_$DATE
+chmod 600 db_$DATE.tar
+rm -rf /tmp/db_$DATE
+echo `date "+%F %H:%M:%S:"`" Moving to backup@nas.alatek.com.pl:/soft/backups/databases"
+scp db_$DATE.tar backups@nas.alatek.com.pl:~/databases
+rm db_$DATE.tar
+echo `date "+%F %H:%M:%S: "`"Complete MySQL backup."
+
+######### Backup /var/www #########
+echo `date "+%F %H:%M:%S:"`" Compressing /var/www"
+cd /var/www
+tar -cvf www_$DATE.tar ./*
+bzip2 -9 www_$DATE.tar
+chmod 600 www_$DATE.tar.bz2
+echo `date "+%F %H:%M:%S:"`" Moving to backup@nas.alatek.com.pl:/soft/backups/websites"
+scp www_$DATE.tar.bz2 backups@nas.alatek.com.pl:~/websites
+rm -rf www_$DATE.tar.bz2
+echo `date "+%F %H:%M:%S: "`"Complete Apache data backup."
