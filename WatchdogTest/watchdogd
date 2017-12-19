@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -e
+
+# Name of the watchdog service
+NAME=watchdogd
+PIDFILE=/var/run/$NAME.pid
+#Command to run - full pathname
+DAEMON=${PWD}/watchdog.sh
+
+export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
+
+case "$1" in
+  start)
+        # Watchdogd process is not running
+        if [ ! -f ${PIDFILE} ]; then
+                echo -n "Starting daemon: "$NAME
+                start-stop-daemon --start --quiet --background --make-pidfile --pidfile $PIDFILE --exec $DAEMON
+                echo "."
+                sleep 1
+                # Daemon didn't start properly
+                if ! start-stop-daemon --status --pidfile ${PIDFILE}; then
+                        echo "Problem with starting a daemon. Check /var/log/watchdogd.log file for troubleshoot."
+                        rm -f ${PIDFILE} || echo "Couldn't remove ${PIDFILE}"
+                fi
+        else
+                echo "Service already running"
+        fi
+        ;;
+  stop)
+        echo -n "Stopping daemon: "$NAME
+        start-stop-daemon --stop --quiet --oknodo --remove-pidfile --pidfile $PIDFILE
+        echo "."
+        ;;
+  restart)
+        echo -n "Restarting daemon: "$NAME
+        start-stop-daemon --stop --quiet --oknodo --remove-pidfile --retry 30 --pidfile $PIDFILE
+        start-stop-daemon --start --quiet --background --make-pidfile --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_OPTS
+        echo "."
+        ;;
+
+  *)
+        echo "Usage: "$1" {start|stop|restart}"
+        exit 1
+esac
+
+exit 0
